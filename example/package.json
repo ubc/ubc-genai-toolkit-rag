@@ -1,0 +1,25 @@
+{
+  "name": "ubc-genai-toolkit-rag-example",
+  "version": "0.1.0",
+  "description": "Example CLI app for the ubc-genai-toolkit-rag package.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "clear-storage": "node dist/clear-storage.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "readline-sync": "^1.4.10",
+    "ubc-genai-toolkit-rag": "file:..",
+    "ubc-genai-toolkit-core": "^0.1.0",
+    "ubc-genai-toolkit-llm": "^0.1.0",
+    "ubc-genai-toolkit-embeddings": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@types/readline-sync": "^1.4.8",
+    "typescript": "^5.8.2"
+  }
+}

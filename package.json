@@ -1,0 +1,30 @@
+{
+  "name": "ubc-genai-toolkit-rag",
+  "version": "0.1.0",
+  "description": "RAG module for the UBC GenAI Toolkit",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+  },
+  "dependencies": {
+    "@qdrant/js-client-rest": "^1.14.1",
+    "ubc-genai-toolkit-core": "^0.1.0",
+    "ubc-genai-toolkit-embeddings": "^0.1.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/uuid": "^9.0.0",
+    "typescript": "^5.3.3"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "author": "UBC Learning Technology Innovation Centre",
+  "license": "GPL-3.0"
+}
