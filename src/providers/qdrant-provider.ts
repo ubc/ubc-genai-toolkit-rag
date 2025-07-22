@@ -88,61 +88,56 @@ export class QdrantProvider implements RAGProviderInterface {
 	async addDocument(content: string, metadata: Record<string, any> = {}): Promise<string[]> {
 		this.logger.debug(`Adding document with metadata:`, metadata);
 		// 1. Chunk the document
-		const chunks = simpleChunker(content); // Using simple chunker for now
+		const chunks = simpleChunker(content);
 		this.logger.debug(`Document split into ${chunks.length} chunks.`);
-
 		if (chunks.length === 0) {
 			this.logger.warn('Document content resulted in zero chunks. Nothing to add.');
-			return []; // Return empty array
+			return [];
 		}
 
-		// 2. Get embeddings for chunks (one by one)
+		// 2. Get embeddings for all chunks in one batch
 		this.logger.debug(`Generating embeddings for ${chunks.length} chunks...`);
+		const embeddings = await this.embeddings.embed(chunks);
+		this.logger.info(`Successfully generated embeddings for ${embeddings.length}/${chunks.length} chunks.`);
+
+		// 3. Create points, filtering out any that failed to embed
 		const points: QdrantSchemas['PointStruct'][] = [];
-		const addedChunkIds: string[] = []; // Array to store generated IDs
-
+		const addedChunkIds: string[] = [];
 		for (let i = 0; i < chunks.length; i++) {
-			const chunk = chunks[i];
-			try {
-				const [embedding] = await this.embeddings.embed(chunk);
-				if (!embedding) {
-					throw new Error(`EmbeddingsModule.embed returned no result for chunk ${i}`);
-				}
-				const chunkId = uuidv4(); // Generate unique ID for each chunk
-				addedChunkIds.push(chunkId); // Store the ID
-
-				points.push({
-					id: chunkId, // Use the generated ID
-					vector: embedding,
-					payload: {
-						...metadata, // Include original document metadata
-						content: chunk, // Store the chunk content itself
-						chunkIndex: i, // Add chunk index for reference
-					},
-				});
-				if ((i + 1) % 10 === 0 || i === chunks.length - 1) { // Log progress
-					this.logger.debug(`Generated embeddings for ${i + 1}/${chunks.length} chunks.`);
-				}
-			} catch (error) {
-				this.logger.error(`Failed to generate embedding for chunk ${i}:`, { error, chunk });
-				// Decide on error handling: skip chunk, or fail entire operation?
-				// For now, let's fail the operation.
-				throw new Error(`Embedding generation failed for chunk ${i}: ${error instanceof Error ? error.message : String(error)}`);
+			const embedding = embeddings[i];
+			if (!embedding) {
+				this.logger.warn(`Skipping chunk ${i} as it failed to produce an embedding.`);
+				continue;
 			}
+			const chunkId = uuidv4();
+			addedChunkIds.push(chunkId);
+			points.push({
+				id: chunkId,
+				vector: embedding,
+				payload: {
+					...metadata,
+					content: chunks[i],
+					chunkIndex: i,
+				},
+			});
 		}
-		this.logger.info(`Successfully generated embeddings for all ${chunks.length} chunks.`);
 
-		// 3. Upsert points to Qdrant
+		if (points.length === 0) {
+			this.logger.warn('All chunks failed to produce embeddings. Nothing to upsert.');
+			return [];
+		}
+
+		// 4. Upsert points to Qdrant
 		try {
 			this.logger.debug(`Upserting ${points.length} points to collection '${this.config.collectionName}'...`);
 			await this.client.upsert(this.config.collectionName, {
-				wait: true, // Wait for operation to complete
+				wait: true,
 				points: points,
 			});
 			this.logger.info(`Successfully upserted ${points.length} points.`);
-			return addedChunkIds; // Return the array of added chunk IDs
+			return addedChunkIds;
 		} catch (error) {
-			this.logger.error('Error upserting points to Qdrant:', { error });
+			this.logger.error('Error upserting points to Qdrant:', { error: JSON.stringify(error, null, 2) });
 			throw new Error(`Qdrant upsert failed: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
