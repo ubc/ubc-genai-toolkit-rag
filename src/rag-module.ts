@@ -196,6 +196,15 @@ export class RAGModule implements RAGModuleInterface {
 	}
 
 	/**
+	 * Retrieves all documents/chunks from the vector store that match the provided metadata filter.
+	 */
+	async getDocumentsByMetadata(filter: Record<string, any>): Promise<any[]> {
+		this.ensureInitialized();
+		this.logger.debug('Getting documents by metadata filter:', { filter });
+		return this.ragProvider.getDocumentsByMetadata(filter);
+	}
+
+	/**
 	 * Deletes the entire underlying storage container (e.g., collection, index)
 	 * associated with this RAG module's configuration.
 	 * Use with caution.

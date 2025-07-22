@@ -107,6 +107,12 @@ export interface RAGProviderInterface {
 	 */
 	deleteDocumentsByMetadata(filter: Record<string, any>): Promise<void>;
 	/**
+	 * Retrieves all documents (points) from the vector store that match the provided metadata filter.
+	 * @param filter A metadata filter object.
+	 * @returns A promise resolving to an array of the full retrieved points.
+	 */
+	getDocumentsByMetadata(filter: Record<string, any>): Promise<any[]>;
+	/**
 	 * Deletes the entire underlying storage container (e.g., collection, index)
 	 * associated with this provider instance configuration.
 	 * This is a destructive operation.
@@ -143,6 +149,12 @@ export interface RAGModuleInterface {
 	 * @param filter A metadata filter object. Provider-specific interpretation applies.
 	 */
 	deleteDocumentsByMetadata(filter: Record<string, any>): Promise<void>;
+	/**
+	 * Retrieves all documents (points) from the vector store that match the provided metadata filter.
+	 * @param filter A metadata filter object.
+	 * @returns A promise resolving to an array of the full retrieved points.
+	 */
+	getDocumentsByMetadata(filter: Record<string, any>): Promise<any[]>;
 	/**
 	 * Deletes the entire underlying storage container (e.g., collection, index)
 	 * associated with this RAG module's configuration.

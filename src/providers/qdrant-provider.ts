@@ -185,6 +185,49 @@ export class QdrantProvider implements RAGProviderInterface {
 		}
 	}
 
+	async getDocumentsByMetadata(filter: Record<string, any>): Promise<any[]> {
+		this.logger.debug('Getting all documents by metadata filter:', { filter });
+
+		const allPoints: QdrantSchemas['Record'][] = [];
+		let nextPageOffset: QdrantSchemas['ScrollRequest']['offset'] | null | undefined = undefined;
+
+		try {
+			do {
+				const response = await this.client.scroll(this.config.collectionName, {
+					filter: {
+						must: Object.entries(filter).map(([key, value]) => ({
+							key: key,
+							match: { value: value },
+						})),
+					},
+					limit: 250, // Sensible page size
+					offset: nextPageOffset,
+					with_payload: true,
+					with_vector: true,
+				});
+
+				if (response.points.length > 0) {
+					allPoints.push(...response.points);
+				}
+				nextPageOffset = response.next_page_offset;
+
+			} while (nextPageOffset);
+
+			this.logger.debug(`Retrieved a total of ${allPoints.length} points for the filter.`);
+
+			return allPoints.map((point) => ({
+				id: point.id,
+				content: point.payload?.content,
+				metadata: point.payload,
+				vector: point.vector,
+			}));
+
+		} catch (error) {
+			this.logger.error('Error scrolling through Qdrant points:', { error });
+			throw new Error(`Qdrant scroll failed: ${error instanceof Error ? error.message : String(error)}`);
+		}
+	}
+
 	async deleteDocumentsByIds(ids: string[]): Promise<void> {
 		if (!ids || ids.length === 0) {
 			this.logger.warn('No IDs provided for deletion.');
