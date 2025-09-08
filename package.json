@@ -1,6 +1,6 @@
 {
   "name": "ubc-genai-toolkit-rag",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "RAG module for the UBC GenAI Toolkit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.14.1",
+    "ubc-genai-toolkit-chunking": "^0.1.0",
     "ubc-genai-toolkit-core": "^0.1.0",
     "ubc-genai-toolkit-embeddings": "^0.1.0",
     "uuid": "^9.0.0"

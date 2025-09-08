@@ -7,6 +7,7 @@
 import dotenv from 'dotenv';
 import { LLMConfig, ProviderType as LLMProviderType } from 'ubc-genai-toolkit-llm';
 import { RAGConfig, RAGProviderType, QdrantDistanceMetric } from 'ubc-genai-toolkit-rag';
+import { ChunkingConfig, ChunkingStrategyType } from 'ubc-genai-toolkit-chunking';
 import { EmbeddingsConfig, EmbeddingProviderType } from 'ubc-genai-toolkit-embeddings';
 import { ConsoleLogger, LoggerInterface } from 'ubc-genai-toolkit-core';
 
@@ -125,11 +126,35 @@ export function loadConfig(): AppConfig {
 	};
 	if (debug) logger.debug('Qdrant Specific Config:', qdrantConfig);
 
+	// --- Chunking Config (Optional) ---
+	let chunkingConfig: ChunkingConfig | undefined = undefined;
+	const chunkingStrategy = process.env.CHUNKING_STRATEGY as ChunkingStrategyType | undefined;
+
+	if (chunkingStrategy) {
+		const chunkSize = process.env.CHUNKING_SIZE ? parseInt(process.env.CHUNKING_SIZE, 10) : undefined;
+		const chunkOverlap = process.env.CHUNKING_OVERLAP ? parseInt(process.env.CHUNKING_OVERLAP, 10) : undefined;
+
+		if (isNaN(chunkSize || NaN) || isNaN(chunkOverlap || NaN)) {
+			throw new Error('CHUNKING_SIZE and CHUNKING_OVERLAP must be valid numbers if CHUNKING_STRATEGY is set.');
+		}
+
+		chunkingConfig = {
+			strategy: chunkingStrategy,
+			defaultOptions: {
+				chunkSize: chunkSize,
+				chunkOverlap: chunkOverlap,
+			},
+		};
+		if (debug) logger.debug('Assembled Chunking Config:', chunkingConfig);
+	}
+
+
 	// --- Assemble RAG Config ---
 	const ragConfig: RAGConfig = {
 		provider: ragProvider,
 		qdrantConfig: qdrantConfig,
 		embeddingsConfig: embeddingsConfig, // Embeddings config is required by RAGModule
+		chunkingConfig: chunkingConfig, // Add the optional chunking config
 		logger: logger, // Share logger
 		debug: debug,
 		// Default retrieval options (can be overridden at query time)

@@ -2,6 +2,7 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 import type { Schemas as QdrantSchemas } from '@qdrant/js-client-rest';
 import { EmbeddingsModule } from 'ubc-genai-toolkit-embeddings';
 import { LoggerInterface } from 'ubc-genai-toolkit-core';
+import { ChunkingModule, Chunk } from 'ubc-genai-toolkit-chunking';
 import {
 	RAGProviderInterface,
 	QdrantConfig,
@@ -10,40 +11,29 @@ import {
 } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
-// Simple chunking function (can be replaced with more sophisticated methods later)
-function simpleChunker(text: string, chunkSize = 300, overlap = 50): string[] {
-	const chunks: string[] = [];
-	if (text.length <= chunkSize) {
-		return [text];
-	}
-
-	let i = 0;
-	while (i < text.length) {
-		const end = Math.min(i + chunkSize, text.length);
-		chunks.push(text.substring(i, end));
-		i += chunkSize - overlap;
-		if (end === text.length) break; // Exit if we reached the end
-	}
-	return chunks;
-}
-
 export class QdrantProvider implements RAGProviderInterface {
 	private client: QdrantClient;
 	private config: QdrantConfig;
 	private embeddings: EmbeddingsModule;
 	private logger: LoggerInterface;
+	private chunkingModule?: ChunkingModule;
+	private customChunker?: (content: string) => string[];
 	private isDebug: boolean;
 
 	constructor(
 		config: QdrantConfig,
 		embeddingsModule: EmbeddingsModule,
 		logger: LoggerInterface,
-		debug = false
+		debug = false,
+		chunkingModule?: ChunkingModule,
+		customChunker?: (content: string) => string[]
 	) {
 		this.config = config;
 		this.embeddings = embeddingsModule;
 		this.logger = logger;
 		this.isDebug = debug;
+		this.chunkingModule = chunkingModule;
+		this.customChunker = customChunker;
 
 		// Initialize Qdrant client
 		this.client = new QdrantClient({
@@ -85,25 +75,71 @@ export class QdrantProvider implements RAGProviderInterface {
 		}
 	}
 
+	/**
+	 * A default, simple chunker to be used as a fallback.
+	 */
+	private defaultSimpleChunker(text: string, chunkSize = 300, overlap = 50): string[] {
+		const chunks: string[] = [];
+		if (text.length <= chunkSize) {
+			return [text];
+		}
+
+		let i = 0;
+		while (i < text.length) {
+			const end = Math.min(i + chunkSize, text.length);
+			chunks.push(text.substring(i, end));
+			i += chunkSize - overlap;
+			if (end === text.length) break; // Exit if we reached the end
+		}
+		return chunks;
+	}
+
 	async addDocument(content: string, metadata: Record<string, any> = {}): Promise<string[]> {
 		this.logger.debug(`Adding document with metadata:`, metadata);
-		// 1. Chunk the document
-		const chunks = simpleChunker(content);
+
+		let chunks: (Chunk | string)[] = [];
+		let isChunkModuleUsed = false;
+
+		// 1. Chunk the document using the provided strategy
+		if (this.chunkingModule) {
+			this.logger.debug('Using ChunkingModule to split document.');
+			isChunkModuleUsed = true;
+			const doc = {
+				content: content,
+				metadata: {
+					sourceId: metadata.sourceId || uuidv4(), // Use provided sourceId or generate a new one
+					...metadata,
+				},
+			};
+			const response = await this.chunkingModule.chunkDocuments([doc]);
+			chunks = response.chunks;
+		} else if (this.customChunker) {
+			this.logger.debug('Using custom chunker function to split document.');
+			chunks = this.customChunker(content);
+		} else {
+			this.logger.debug('Using default simple chunker to split document.');
+			chunks = this.defaultSimpleChunker(content);
+		}
+
 		this.logger.debug(`Document split into ${chunks.length} chunks.`);
 		if (chunks.length === 0) {
 			this.logger.warn('Document content resulted in zero chunks. Nothing to add.');
 			return [];
 		}
 
+		const chunkContents = isChunkModuleUsed
+			? (chunks as Chunk[]).map((c) => c.text)
+			: (chunks as string[]);
+
 		// 2. Get embeddings for all chunks in one batch
-		this.logger.debug(`Generating embeddings for ${chunks.length} chunks...`);
-		const embeddings = await this.embeddings.embed(chunks);
-		this.logger.info(`Successfully generated embeddings for ${embeddings.length}/${chunks.length} chunks.`);
+		this.logger.debug(`Generating embeddings for ${chunkContents.length} chunks...`);
+		const embeddings = await this.embeddings.embed(chunkContents);
+		this.logger.info(`Successfully generated embeddings for ${embeddings.length}/${chunkContents.length} chunks.`);
 
 		// 3. Create points, filtering out any that failed to embed
 		const points: QdrantSchemas['PointStruct'][] = [];
 		const addedChunkIds: string[] = [];
-		for (let i = 0; i < chunks.length; i++) {
+		for (let i = 0; i < chunkContents.length; i++) {
 			const embedding = embeddings[i];
 			if (!embedding) {
 				this.logger.warn(`Skipping chunk ${i} as it failed to produce an embedding.`);
@@ -111,14 +147,28 @@ export class QdrantProvider implements RAGProviderInterface {
 			}
 			const chunkId = uuidv4();
 			addedChunkIds.push(chunkId);
+
+			let payload: Record<string, any>;
+
+			if (isChunkModuleUsed) {
+				const chunk = chunks[i] as Chunk;
+				payload = {
+					content: chunk.text,
+					...metadata, // Include original top-level metadata
+					chunkMetadata: chunk.metadata, // Nest chunk-specific metadata
+				};
+			} else {
+				payload = {
+					...metadata,
+					content: chunkContents[i],
+					chunkIndex: i,
+				};
+			}
+
 			points.push({
 				id: chunkId,
 				vector: embedding,
-				payload: {
-					...metadata,
-					content: chunks[i],
-					chunkIndex: i,
-				},
+				payload: payload,
 			});
 		}
 

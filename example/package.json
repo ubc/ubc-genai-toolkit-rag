@@ -1,6 +1,6 @@
 {
   "name": "ubc-genai-toolkit-rag-example",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "Example CLI app for the ubc-genai-toolkit-rag package.",
   "main": "dist/index.js",
   "scripts": {
@@ -15,7 +15,8 @@
     "ubc-genai-toolkit-rag": "file:..",
     "ubc-genai-toolkit-core": "^0.1.0",
     "ubc-genai-toolkit-llm": "^0.1.0",
-    "ubc-genai-toolkit-embeddings": "^0.1.0"
+    "ubc-genai-toolkit-embeddings": "^0.1.0",
+    "ubc-genai-toolkit-chunking": "^0.1.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.19",

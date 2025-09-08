@@ -1,5 +1,6 @@
 import { ConsoleLogger, LoggerInterface } from 'ubc-genai-toolkit-core';
 import { EmbeddingsModule } from 'ubc-genai-toolkit-embeddings';
+import { ChunkingModule } from 'ubc-genai-toolkit-chunking';
 import {
 	RAGConfig,
 	RAGModuleInterface,
@@ -13,6 +14,8 @@ export class RAGModule implements RAGModuleInterface {
 	private config: RAGConfig;
 	private logger: LoggerInterface;
 	private embeddingsModule!: EmbeddingsModule;
+	private chunkingModule?: ChunkingModule;
+	private customChunker?: (content: string) => string[];
 	private ragProvider!: RAGProviderInterface;
 	private isInitialized = false;
 
@@ -111,6 +114,20 @@ export class RAGModule implements RAGModuleInterface {
 			});
 			this.logger.info('Internal EmbeddingsModule initialized successfully.');
 
+			// Initialize internal ChunkingModule or custom chunker if provided
+			if (this.config.chunkingConfig) {
+				if (typeof this.config.chunkingConfig === 'function') {
+					this.customChunker = this.config.chunkingConfig;
+					this.logger.info('Using custom chunking function.');
+				} else {
+					this.chunkingModule = new ChunkingModule({
+						...this.config.chunkingConfig,
+						logger: this.logger, // Propagate logger
+					});
+					this.logger.info(`Internal ChunkingModule initialized with strategy: '${this.chunkingModule.getDefaultStrategyName()}'.`);
+				}
+			}
+
 			// Instantiate and initialize the specific RAG provider
 			switch (this.config.provider) {
 				case 'qdrant':
@@ -118,7 +135,9 @@ export class RAGModule implements RAGModuleInterface {
 						this.config.qdrantConfig,
 						this.embeddingsModule, // Pass the initialized embeddings module
 						this.logger,
-						this.config.debug
+						this.config.debug,
+						this.chunkingModule,
+						this.customChunker
 					);
 					break;
 				// Add cases for other providers here

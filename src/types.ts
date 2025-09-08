@@ -1,5 +1,6 @@
 import { LoggerInterface } from 'ubc-genai-toolkit-core';
 import { EmbeddingsConfig } from 'ubc-genai-toolkit-embeddings';
+import { ChunkingConfig } from 'ubc-genai-toolkit-chunking';
 
 /**
  * Defines the supported RAG providers.
@@ -39,6 +40,12 @@ export interface RAGConfig {
 	qdrantConfig: QdrantConfig; // Add other provider configs later (e.g., | PineconeConfig)
 	/** Configuration for the Embeddings module if managed internally. Optional. */
 	embeddingsConfig?: EmbeddingsConfig;
+	/**
+	 * Optional configuration for document chunking.
+	 * If not provided, a default simple chunker will be used.
+	 * Can be a configuration object for the `ChunkingModule` or a custom function.
+	 */
+	chunkingConfig?: ChunkingConfig | ((content: string) => string[]);
 	/** Optional logger instance conforming to LoggerInterface. */
 	logger?: LoggerInterface;
 	/** Enable debug logging. Defaults to false. */

@@ -3,3 +3,5 @@ dist
 tsconfig.tsbuildinfo
 .DS_Store
 example/node_modules
+example/local_cache/fast-bge-small-en-v1.5.tar
+example/local_cache/fast-bge-small-en-v1.5.tar.gz
