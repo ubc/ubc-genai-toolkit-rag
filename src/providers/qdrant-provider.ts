@@ -11,6 +11,8 @@ import {
 } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 
+const BATCH_SIZE = 50;
+
 export class QdrantProvider implements RAGProviderInterface {
 	private client: QdrantClient;
 	private config: QdrantConfig;
@@ -180,10 +182,12 @@ export class QdrantProvider implements RAGProviderInterface {
 		// 4. Upsert points to Qdrant
 		try {
 			this.logger.debug(`Upserting ${points.length} points to collection '${this.config.collectionName}'...`);
-			await this.client.upsert(this.config.collectionName, {
-				wait: true,
-				points: points,
-			});
+			for (let i = 0; i < points.length; i += BATCH_SIZE) {
+				await this.client.upsert(this.config.collectionName, {
+					wait: true,
+					points: points.slice(i, i + BATCH_SIZE),
+				});
+			}
 			this.logger.info(`Successfully upserted ${points.length} points.`);
 			return addedChunkIds;
 		} catch (error) {
