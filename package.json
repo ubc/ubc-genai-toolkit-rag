@@ -1,6 +1,6 @@
 {
   "name": "ubc-genai-toolkit-rag",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "RAG module for the UBC GenAI Toolkit",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
