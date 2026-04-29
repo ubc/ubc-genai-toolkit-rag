@@ -210,7 +210,7 @@ export class QdrantProvider implements RAGProviderInterface {
 				vector: queryVector,
 				limit: options.limit ?? 5, // Use provided limit or default
 				score_threshold: options.scoreThreshold, // Use provided threshold if any
-				// filter: options.filter, // TODO: Add filter conversion if needed
+				filter: options.filter, // Allow Qdrant filters to be provided
 				with_payload: true, // Crucial to get the content back
 				with_vector: false, // Usually don't need the vector itself back
 			});
