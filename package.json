@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "build": "tsc -b",
-    "clean": "rm -rf dist tsconfig.tsbuildinfo"
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "prepublishOnly": "npm run clean && npm run build"
   },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.14.1",
